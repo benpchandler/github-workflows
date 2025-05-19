@@ -11,6 +11,10 @@ on:
         required: true
         type: string
         description: "The ID of the Status field in the GitHub Project"
+    secrets:
+      token:
+        required: true
+        description: "GitHub token with project permissions"
 
 jobs:
   map-status-to-project:
@@ -19,7 +23,7 @@ jobs:
       - name: Map status label to project status
         uses: actions/github-script@v6
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{ secrets.token }}
           script: |
             const itemId = context.payload.issue ? context.payload.issue.node_id : context.payload.pull_request.node_id;
             const projectId = '${{ inputs.project-id }}';
