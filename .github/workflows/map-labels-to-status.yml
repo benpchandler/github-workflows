@@ -31,12 +31,20 @@ jobs:
             
             // Get the project item ID
             const findItemQuery = `
-              query($projectId: ID!, $itemId: ID!) {
+              query($projectId: ID!) {
                 node(id: $projectId) {
                   ... on ProjectV2 {
-                    items(first: 1, filter: {contentId: $itemId}) {
+                    items(first: 100) {
                       nodes {
                         id
+                        content {
+                          ... on Issue {
+                            id
+                          }
+                          ... on PullRequest {
+                            id
+                          }
+                        }
                       }
                     }
                   }
@@ -45,15 +53,21 @@ jobs:
             `;
             
             const findItemResult = await github.graphql(findItemQuery, {
-              projectId,
-              itemId
+              projectId
             });
             
-            const projectItemId = findItemResult.node.items.nodes[0]?.id;
-            if (!projectItemId) {
+            // Find the project item that matches the issue/PR
+            const projectItems = findItemResult.node.items.nodes;
+            const projectItem = projectItems.find(item => 
+              item.content && item.content.id === itemId
+            );
+            
+            if (!projectItem) {
               console.log('Item not found in project');
               return;
             }
+            
+            const projectItemId = projectItem.id;
             
             // Map status labels to simplified project statuses
             const statusMap = {
