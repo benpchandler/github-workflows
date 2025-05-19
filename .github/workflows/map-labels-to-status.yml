@@ -56,31 +56,30 @@ jobs:
             }
             
             // Map status labels to simplified project statuses
-            // These IDs should be configured in the calling workflow
             const statusMap = {
               // Backlog
-              'status:s0-backlog': 'backlog-option-id',
+              'status:s0-backlog': 'b9b4701e',
               
               // To Do
-              'status:s1-prioritized': 'todo-option-id',
-              'status:s2-scoped': 'todo-option-id',
-              'status:s3-ready-for-dev': 'todo-option-id',
-              'status:needs-design': 'todo-option-id',
+              'status:s1-prioritized': '5caa3445',
+              'status:s2-scoped': '5caa3445',
+              'status:s3-ready-for-dev': '5caa3445',
+              'status:needs-design': '5caa3445',
               
               // In Progress
-              'status:s4-in-development': 'in-progress-option-id',
-              'status:needs-input': 'in-progress-option-id',
+              'status:s4-in-development': '898cd453',
+              'status:needs-input': '898cd453',
               
               // Review
-              'status:s5-needs-code-review': 'review-option-id',
-              'status:s6-revisions-requested': 'review-option-id',
+              'status:s5-needs-code-review': '40361d76',
+              'status:s6-revisions-requested': '40361d76',
               
               // Done
-              'status:s7-approved-for-merge': 'done-option-id',
-              'status:s8-merged': 'done-option-id',
+              'status:s7-approved-for-merge': '20de5b54',
+              'status:s8-merged': '20de5b54',
               
               // Blocked
-              'status:blocked': 'blocked-option-id'
+              'status:blocked': '6061cb9f'
             };
             
             // Determine which project status to set based on the most advanced status label
