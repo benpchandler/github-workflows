@@ -1,0 +1,143 @@
+name: Map Status Labels to Project Status
+
+on:
+  workflow_call:
+    inputs:
+      project-id:
+        required: true
+        type: string
+        description: "The ID of the GitHub Project"
+      status-field-id:
+        required: true
+        type: string
+        description: "The ID of the Status field in the GitHub Project"
+
+jobs:
+  map-status-to-project:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Map status label to project status
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const itemId = context.payload.issue ? context.payload.issue.node_id : context.payload.pull_request.node_id;
+            const projectId = '${{ inputs.project-id }}';
+            const statusFieldId = '${{ inputs.status-field-id }}';
+            
+            // Find all status labels
+            const labels = context.payload.issue ? context.payload.issue.labels : context.payload.pull_request.labels;
+            const statusLabels = labels.filter(label => label.name.startsWith('status:'));
+            
+            // Get the project item ID
+            const findItemQuery = `
+              query($projectId: ID!, $itemId: ID!) {
+                node(id: $projectId) {
+                  ... on ProjectV2 {
+                    items(first: 1, filter: {contentId: $itemId}) {
+                      nodes {
+                        id
+                      }
+                    }
+                  }
+                }
+              }
+            `;
+            
+            const findItemResult = await github.graphql(findItemQuery, {
+              projectId,
+              itemId
+            });
+            
+            const projectItemId = findItemResult.node.items.nodes[0]?.id;
+            if (!projectItemId) {
+              console.log('Item not found in project');
+              return;
+            }
+            
+            // Map status labels to simplified project statuses
+            // These IDs should be configured in the calling workflow
+            const statusMap = {
+              // Backlog
+              'status:s0-backlog': 'backlog-option-id',
+              
+              // To Do
+              'status:s1-prioritized': 'todo-option-id',
+              'status:s2-scoped': 'todo-option-id',
+              'status:s3-ready-for-dev': 'todo-option-id',
+              'status:needs-design': 'todo-option-id',
+              
+              // In Progress
+              'status:s4-in-development': 'in-progress-option-id',
+              'status:needs-input': 'in-progress-option-id',
+              
+              // Review
+              'status:s5-needs-code-review': 'review-option-id',
+              'status:s6-revisions-requested': 'review-option-id',
+              
+              // Done
+              'status:s7-approved-for-merge': 'done-option-id',
+              'status:s8-merged': 'done-option-id',
+              
+              // Blocked
+              'status:blocked': 'blocked-option-id'
+            };
+            
+            // Determine which project status to set based on the most advanced status label
+            const priorityOrder = [
+              'status:blocked',
+              'status:needs-design',
+              'status:needs-input',
+              'status:s0-backlog',
+              'status:s1-prioritized',
+              'status:s2-scoped',
+              'status:s3-ready-for-dev',
+              'status:s4-in-development',
+              'status:s5-needs-code-review',
+              'status:s6-revisions-requested',
+              'status:s7-approved-for-merge',
+              'status:s8-merged'
+            ];
+            
+            // Find the highest priority status label
+            let highestPriorityLabel = null;
+            let highestPriorityIndex = -1;
+            
+            for (const label of statusLabels) {
+              const index = priorityOrder.indexOf(label.name);
+              if (index > highestPriorityIndex) {
+                highestPriorityIndex = index;
+                highestPriorityLabel = label.name;
+              }
+            }
+            
+            if (highestPriorityLabel && statusMap[highestPriorityLabel]) {
+              // Update the project status
+              const updateStatusMutation = `
+                mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
+                  updateProjectV2ItemFieldValue(
+                    input: {
+                      projectId: $projectId
+                      itemId: $itemId
+                      fieldId: $fieldId
+                      value: { 
+                        singleSelectOptionId: $optionId
+                      }
+                    }
+                  ) {
+                    projectV2Item {
+                      id
+                    }
+                  }
+                }
+              `;
+              
+              await github.graphql(updateStatusMutation, {
+                projectId,
+                itemId: projectItemId,
+                fieldId: statusFieldId,
+                optionId: statusMap[highestPriorityLabel]
+              });
+              
+              console.log(`Updated project status based on label ${highestPriorityLabel}`);
+            }
